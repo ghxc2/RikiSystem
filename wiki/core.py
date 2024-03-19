@@ -168,6 +168,7 @@ class Page(object):
     def __init__(self, path, url, new=False):
         self.path = path
         self.url = url
+        # self.version
         self._meta = OrderedDict()
         if not new:
             self.load()
