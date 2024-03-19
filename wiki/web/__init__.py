@@ -63,14 +63,18 @@ def initialize_db(app):
     """
     This method initializes the SQLite database to store Wiki page history.
     """
-    connection = sqlite3.connect(app.config['DATABASE'])
-    cursor = connection.cursor()
+    conn = sqlite3.connect(app.config['DATABASE'])
+    cursor = conn.cursor()
 
     cursor.execute('''CREATE TABLE IF NOT EXISTS wiki_pages (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         url TEXT NOT NULL,
-                        version INTEGER
+                        version INTEGER,
+                        content TEXT NOT NULL
     )''')
+    # Just for testing purposes (to clear the table)
+    cursor.execute('''DELETE FROM wiki_pages''')
 
-    connection.commit()
-    connection.close()
+    conn.commit()
+    conn.close()
+

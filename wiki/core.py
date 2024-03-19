@@ -2,6 +2,7 @@
     Wiki core
     ~~~~~~~~~
 """
+import sqlite3
 from collections import OrderedDict
 from io import open
 import os
@@ -9,6 +10,7 @@ import re
 
 from flask import abort
 from flask import url_for
+from flask import current_app
 import markdown
 
 
@@ -164,11 +166,17 @@ class Processor(object):
         return self.final, self.markdown, self.meta
 
 
+def connect_to_db():
+    connection = sqlite3.connect(current_app.config['DATABASE'])
+    cursor = connection.cursor()
+
+    return connection, cursor
+
+
 class Page(object):
     def __init__(self, path, url, new=False):
         self.path = path
         self.url = url
-        # self.version
         self._meta = OrderedDict()
         if not new:
             self.load()
@@ -195,9 +203,39 @@ class Page(object):
                 f.write(line)
             f.write('\n')
             f.write(self.body.replace('\r\n', '\n'))
+        self.load()
+        self.save_to_db(update=update)
+        self.render()
+
+
+
+    def save_to_db(self, update):
+        """
+        This method saves a new wiki page edit to the database. It first finds the most recent version given the url,
+        and then it inserts the previous version for the most recent update.
+
+        It takes an argument values that specifies the url, version, and content to insert into the database.
+        """
+        connection = sqlite3.connect(current_app.config['DATABASE'])
+        cursor = connection.cursor()
+        version = 1
+
         if update:
-            self.load()
-            self.render()
+            select_query = '''SELECT MAX(version) AS max_version
+                                FROM wiki_pages
+                                WHERE url = ?;'''
+            cursor.execute(select_query, (self.url,))
+            version = cursor.fetchone()[0] + 1
+
+
+        insert_query = '''INSERT INTO wiki_pages (url, version, content)
+                            VALUES (?, ?, ?)'''
+
+
+        cursor.execute(insert_query, (self.url, version, self.content))
+
+        connection.commit()
+        connection.close()
 
     @property
     def meta(self):
