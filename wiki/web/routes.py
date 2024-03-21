@@ -48,6 +48,13 @@ def display(url):
     page = current_wiki.get_or_404(url)
     return render_template('page.html', page=page)
 
+@bp.route('/<path:url>/<int:page_id>')
+@protect
+def display_version(page_id, url):
+    page = current_wiki.get_or_404(url)
+    version = page.get_previous_versions()[page_id-1]
+    return render_template('version.html', page=version)
+
 
 @bp.route('/create/', methods=['GET', 'POST'])
 @protect

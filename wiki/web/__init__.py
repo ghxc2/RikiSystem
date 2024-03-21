@@ -70,7 +70,8 @@ def initialize_db(app):
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         url TEXT NOT NULL,
                         version INTEGER,
-                        content TEXT NOT NULL
+                        content TEXT NOT NULL,
+                        date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
     # Just for testing purposes (to clear the table)
     cursor.execute('''DELETE FROM wiki_pages''')
