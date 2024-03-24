@@ -38,7 +38,7 @@
 <h3>Versions</h3>
 <ul class="nav nav-tabs nav-stacked">
 {% for i in range(page.get_version_count() - 1) %}
-    <li><a href="{{ url_for('wiki.display_version', page_id=i + 1, url=page.url) }}"></a></li>
+    <li><a href="{{ url_for('wiki.display_version', page_id=i + 1, url=page.url) }}">Version {{ i + 1 }}</a></li>
 {% endfor %}
 </ul>
 {% endblock sidebar %}
