@@ -13,7 +13,7 @@ from flask_login import login_required
 from flask_login import login_user
 from flask_login import logout_user
 
-from wiki.core import Processor
+from wiki.core import Processor, delete_from_db
 from wiki.web.forms import EditorForm
 from wiki.web.forms import LoginForm
 from wiki.web.forms import SearchForm
@@ -46,14 +46,16 @@ def index():
 @protect
 def display(url):
     page = current_wiki.get_or_404(url)
-    return render_template('page.html', page=page)
+    is_author = (page.get_author() == current_user.name)
+    return render_template('page.html', page=page, author=is_author)
 
 @bp.route('/<path:url>/<int:page_id>')
 @protect
 def display_version(page_id, url):
     page = current_wiki.get_or_404(url)
     version = page.get_previous_versions()[page_id-1]
-    return render_template('version.html', page=version)
+    is_author = page.get_author() == current_user.name
+    return render_template('version.html', page=version, author=is_author, version=page_id)
 
 
 @bp.route('/create/', methods=['GET', 'POST'])
@@ -78,10 +80,25 @@ def edit(url):
             page = current_wiki.get_bare(url)
         form.populate_obj(page)
         page.save(update=update)
-        flash('"%s" was saved.' % page.title, 'success')
+        if update:
+            flash("Pending Approval", 'warning')
+        else:
+            flash('"%s" was saved.' % page.title, 'success')
         return redirect(url_for('wiki.display', url=url))
     return render_template('editor.html', form=form, page=page)
 
+@bp.route('/approve_edit/<path:url>/', methods=['POST'])
+@protect
+def approve_edit(url, version):
+    page = current_wiki.get(url)
+    page.set_approval(True, version)
+    return redirect(url_for('wiki.display', url=url))
+
+@bp.route('/disapprove_edit/<path:url>/', methods=['POST'])
+@protect
+def disapprove_edit(url, version):
+    delete_from_db(url, version)
+    return redirect(url_for('wiki.display', url=url))
 
 @bp.route('/preview/', methods=['POST'])
 @protect
@@ -107,7 +124,20 @@ def move(url):
 @bp.route('/delete/<path:url>/')
 @protect
 def delete(url):
+    '''
+    This method is used to confirm the deletion of a page with the author, and disallow other users from deleting a page.
+
+    Args:
+        url: the url of the page to be deleted
+
+    Returns: Either redirects the user back to the page with an error message, or returns them to the home page.
+
+    '''
     page = current_wiki.get_or_404(url)
+    if current_user.name != page.get_author():
+        flash('You do not have permission to delete this page.', 'error')
+        return redirect(url_for('wiki.display', url=url))
+
     current_wiki.delete(url)
     flash('Page "%s" was deleted.' % page.title, 'success')
     return redirect(url_for('wiki.home'))

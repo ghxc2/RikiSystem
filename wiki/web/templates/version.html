@@ -5,6 +5,17 @@
 {% endblock title %}
 
 {% block content %}
+    {% if not page.get_approval(version) and author %}
+        <div class="alert alert-warning" role="alert">
+            This edit has not been approved.
+            <form action="{{ url_for('wiki.approve_edit', url=page.url, version=version) }}" method="post" style="display: inline;">
+                <button type="submit" class="btn btn-sm btn-success">Approve</button>
+            </form>
+            <form action="{{ url_for('wiki.disapprove_edit', url=page.url, version=version) }}" method="post" style="display: inline;">
+                <button type="submit" class="btn btn-sm btn-danger">Disapprove</button>
+            </form>
+        </div>
+    {% endif %}
 	{{ page }}
 {% endblock content %}
 

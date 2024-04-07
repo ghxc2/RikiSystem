@@ -1,5 +1,6 @@
 import os
 import sqlite3
+from datetime import datetime
 
 from flask import current_app
 from flask import Flask
@@ -71,10 +72,18 @@ def initialize_db(app):
                         url TEXT NOT NULL,
                         version INTEGER,
                         content TEXT NOT NULL,
-                        date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        author TEXT NOT NULL,
+                        approved BOOLEAN DEFAULT FALSE
     )''')
-    # Just for testing purposes (to clear the table)
+    home_page = (1, 'home', 1, 'title: Main tags: interesting World [[hello|abc]] [[world|world]] aaa bruh', datetime.now(),
+                 'sam', True)
+    test_page = (2, 'test', 1, 'title: Testing tags: testing Testing stuff here!', datetime.now(), 'sam', True)
+
+    # Just for testing purposes (to reinitialize the table)
     cursor.execute('''DELETE FROM wiki_pages''')
+    cursor.execute('''INSERT INTO wiki_pages VALUES (?, ?, ?, ?, ?, ?, ?)''', home_page)
+    cursor.execute('''INSERT INTO wiki_pages VALUES (?, ?, ?, ?, ?, ?, ?)''', test_page)
 
     conn.commit()
     conn.close()

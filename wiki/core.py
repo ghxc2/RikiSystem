@@ -11,6 +11,7 @@ import re
 from flask import abort
 from flask import url_for
 from flask import current_app
+from flask_login import current_user
 import markdown
 from datetime import datetime
 
@@ -209,7 +210,6 @@ class Page(object):
         self.render()
 
 
-
     def save_to_db(self, update):
         """
         This method saves a new wiki page edit to the database. It first finds the most recent version given the url,
@@ -219,6 +219,7 @@ class Page(object):
         """
         connection, cursor = connect_to_db()
         version = 1
+        approved = True
 
         if update:
             select_query = '''SELECT MAX(version) AS max_version
@@ -226,13 +227,14 @@ class Page(object):
                                 WHERE url = ?;'''
             cursor.execute(select_query, (self.url,))
             version = cursor.fetchone()[0] + 1
+            approved = False
 
 
-        insert_query = '''INSERT INTO wiki_pages (url, version, content, date_created)
-                            VALUES (?, ?, ?, ?)'''
+        insert_query = '''INSERT INTO wiki_pages (url, version, content, date_created, author, approved)
+                            VALUES (?, ?, ?, ?, ?, ?)'''
 
 
-        cursor.execute(insert_query, (self.url, version, self.content, datetime.now()))
+        cursor.execute(insert_query, (self.url, version, self.content, datetime.now(), current_user.name, approved))
 
         connection.commit()
         connection.close()
@@ -269,6 +271,46 @@ class Page(object):
 
         return pages
 
+    def get_pending_edits(self):
+        conn, cursor = connect_to_db()
+        query = '''SELECT version FROM wiki_pages WHERE url=? AND approved=?'''
+
+        cursor.execute(query, (self.url, False, ))
+        results = cursor.fetchall()
+        conn.close()
+
+        versions = [result[0] for result in results]
+        return versions
+
+    def set_approval(self, status, version):
+        '''
+        This method is used to change the approval status of an edit made to a page.
+        Args:
+            status: boolean
+            version: int
+
+        Returns: void
+
+        '''
+        conn, cursor = connect_to_db()
+        cursor.execute('''UPDATE wiki_pages SET approved=? WHERE url=? AND version=?''', (status, self.url, version))
+        conn.close()
+
+    def get_approval(self, version):
+        '''
+        This method gets the approval status of a page version.
+        Args:
+            version: int
+
+        Returns: boolean
+
+        '''
+        conn, cursor = connect_to_db()
+        cursor.execute('''SELECT approved FROM wiki_pages WHERE url=? AND version=?''', (self.url, version, ))
+        approved = cursor.fetchone()
+        conn.close()
+
+        return approved
 
 
     @property
@@ -313,8 +355,23 @@ class Page(object):
     def load_content(self, value):
         self.content = value
 
+    def get_author(self):
+        '''
+        This method is used to fetch the database and get the username of the author of the current page.
+        '''
 
-def delete_from_db(url):
+        conn, cursor = connect_to_db()
+
+        query = '''SELECT author FROM wiki_pages WHERE url=? AND version=1'''
+        cursor.execute(query, (self.url,))
+        author = cursor.fetchone()[0]
+        conn.close()
+
+
+        return author
+
+
+def delete_from_db(url, version=False):
     """
     This method removes all versions of a given wiki page in the database
 
@@ -322,9 +379,10 @@ def delete_from_db(url):
     """
     conn, cursor = connect_to_db()
 
-    query = '''DELETE FROM wiki_pages
-                        WHERE url = ?'''
-    cursor.execute(query, (url,))
+    if version:
+        cursor.execute('''DELETE FROM wiki_pages WHERE url=? AND version=?''', (url, version,))
+    else:
+        cursor.execute('''DELETE FROM wiki_pages WHERE url=?''', (url,))
 
     conn.commit()
     conn.close()
