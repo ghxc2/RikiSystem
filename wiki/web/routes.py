@@ -46,7 +46,7 @@ def index():
 @protect
 def display(url):
     page = current_wiki.get_or_404(url)
-    is_author = (page.get_author() == current_user.name)
+    is_author = page.get_author() == current_user.name
     return render_template('page.html', page=page, author=is_author)
 
 @bp.route('/<path:url>/<int:page_id>')
@@ -79,10 +79,11 @@ def edit(url):
             update = False
             page = current_wiki.get_bare(url)
         form.populate_obj(page)
-        page.save(update=update)
-        if update:
+        if update and (current_user.name != page.get_author()):
+            page.save_to_db(update=update)
             flash("Pending Approval", 'warning')
         else:
+            page.save(update=update)
             flash('"%s" was saved.' % page.title, 'success')
         return redirect(url_for('wiki.display', url=url))
     return render_template('editor.html', form=form, page=page)
@@ -92,6 +93,7 @@ def edit(url):
 def approve_edit(url, version):
     page = current_wiki.get(url)
     page.set_approval(True, version)
+    page.save(update=True)
     return redirect(url_for('wiki.display', url=url))
 
 @bp.route('/disapprove_edit/<path:url>/', methods=['POST'])

@@ -219,6 +219,7 @@ class Page(object):
         """
         connection, cursor = connect_to_db()
         version = 1
+        author = current_user.name
         approved = True
 
         if update:
@@ -227,14 +228,14 @@ class Page(object):
                                 WHERE url = ?;'''
             cursor.execute(select_query, (self.url,))
             version = cursor.fetchone()[0] + 1
-            approved = False
+            approved = True if author == self.get_author() else False
 
 
         insert_query = '''INSERT INTO wiki_pages (url, version, content, date_created, author, approved)
                             VALUES (?, ?, ?, ?, ?, ?)'''
 
 
-        cursor.execute(insert_query, (self.url, version, self.content, datetime.now(), current_user.name, approved))
+        cursor.execute(insert_query, (self.url, version, self.content, datetime.now(), author, approved))
 
         connection.commit()
         connection.close()
@@ -272,6 +273,11 @@ class Page(object):
         return pages
 
     def get_pending_edits(self):
+        '''
+        This method is used to return the version numbers of edits that have not been reviewed by the page author yet.
+
+        Returns: array of ints
+        '''
         conn, cursor = connect_to_db()
         query = '''SELECT version FROM wiki_pages WHERE url=? AND approved=?'''
 

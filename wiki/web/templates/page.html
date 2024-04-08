@@ -4,13 +4,13 @@
 	{{ page.title }}
 {% endblock title %}
 
-{% if author %}
-    {% for version in page.get_pending_edits() %}
-        <li><a href="{{ url_for('wiki.display_version', page_id=version, url=page.url) }}">Edit Pending: Version {{ version }}</a></li>
-    {% endfor %}
-{% endif %}
 
 {% block content %}
+    {% if author %}
+        {% for version in page.get_pending_edits() %}
+        <a href="{{ url_for('wiki.display_version', page_id=version, url=page.url) }}">Pending Edit</a>
+        {% endfor %}
+    {% endif %}
   <div id="confirmDelete" class="modal hide fade" aria-hidden="true">
     <div class="modal-header">
       <h3>Are you sure?</h3>
@@ -44,9 +44,7 @@
 <h3>Versions</h3>
 <ul class="nav nav-tabs nav-stacked">
 {% for i in range(page.get_version_count() - 1) %}
-    {% if page.get_approval(i) %}
     <li><a href="{{ url_for('wiki.display_version', page_id=i + 1, url=page.url) }}">Version {{ i + 1 }}</a></li>
-    {% endif %}
 {% endfor %}
 </ul>
 {% endblock sidebar %}
