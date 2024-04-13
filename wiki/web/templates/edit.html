@@ -5,6 +5,10 @@
 {% endblock title %}
 
 {% block content %}
+    {% if author %}
+        <a href="{{ url_for('wiki.approve_edit', url=page.url, version=version) }}" class="btn btn-success mr-2">Approve edit</a>
+        <a href="{{ url_for('wiki.disapprove_edit', url=page.url, version_num=version) }}" class="btn btn-danger">Disapprove edit</a>
+    {% endif %}
 	{{ page }}
 {% endblock content %}
 

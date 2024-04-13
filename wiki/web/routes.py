@@ -49,13 +49,21 @@ def display(url):
     is_author = page.get_author() == current_user.name
     return render_template('page.html', page=page, author=is_author)
 
-@bp.route('/<path:url>/<int:page_id>')
+@bp.route('/display_version/<path:url>/<int:page_id>')
 @protect
 def display_version(page_id, url):
     page = current_wiki.get_or_404(url)
     version = page.get_previous_versions()[page_id-1]
     is_author = page.get_author() == current_user.name
     return render_template('version.html', page=version, author=is_author, version=page_id)
+
+@bp.route('/display_edit/<path:url>/<int:version>')
+@protect
+def display_edit(url, version):
+    page = current_wiki.get_or_404(url)
+    edit = page.display_edit(version=version)
+    is_author = page.get_author() == current_user.name
+    return render_template('edit.html', page=edit, author=is_author, version=version)
 
 
 @bp.route('/create/', methods=['GET', 'POST'])
@@ -79,28 +87,37 @@ def edit(url):
             update = False
             page = current_wiki.get_bare(url)
         form.populate_obj(page)
+        page.save(update=update)
         if update and (current_user.name != page.get_author()):
-            page.save_to_db(update=update)
+            ## Issue is here
             flash("Pending Approval", 'warning')
         else:
-            page.save(update=update)
             flash('"%s" was saved.' % page.title, 'success')
         return redirect(url_for('wiki.display', url=url))
     return render_template('editor.html', form=form, page=page)
 
-@bp.route('/approve_edit/<path:url>/', methods=['POST'])
+@bp.route('/approve_edit/<path:url>/', methods=['GET', 'POST'])
 @protect
-def approve_edit(url, version):
-    page = current_wiki.get(url)
-    page.set_approval(True, version)
-    page.save(update=True)
-    return redirect(url_for('wiki.display', url=url))
+def approve_edit(url):
+    split = url.split('/')
+    base_url = split[0]
+    version = int(split[1])
+    page = current_wiki.get_or_404(base_url)
+    page.set_approval(status=True, version=version)
+    flash('Page Updated', 'success')
+    return redirect(url_for('wiki.display', url=base_url))
 
-@bp.route('/disapprove_edit/<path:url>/', methods=['POST'])
+@bp.route('/disapprove_edit/<path:url>/', methods=['GET', 'POST'])
 @protect
-def disapprove_edit(url, version):
-    delete_from_db(url, version)
-    return redirect(url_for('wiki.display', url=url))
+def disapprove_edit(url):
+    split = url.split('/')
+    base_url = split[0]
+    version = int(split[1])
+    delete_from_db(url=base_url, version_num=version, version=True)
+    page = current_wiki.get_or_404(base_url)
+    page.restore_last_version()
+    flash('Edit Rejected.', 'success')
+    return redirect(url_for('wiki.display', url=base_url))
 
 @bp.route('/preview/', methods=['POST'])
 @protect

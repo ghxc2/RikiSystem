@@ -2,6 +2,7 @@
     Wiki core
     ~~~~~~~~~
 """
+import copy
 import sqlite3
 from collections import OrderedDict
 from io import open
@@ -195,7 +196,7 @@ class Page(object):
         processor = Processor(self.content)
         self._html, self.body, self._meta = processor.process()
 
-    def save(self, update=True):
+    def save(self, update=True, save_db=True):
         folder = os.path.dirname(self.path)
         if not os.path.exists(folder):
             os.makedirs(folder)
@@ -205,8 +206,9 @@ class Page(object):
                 f.write(line)
             f.write('\n')
             f.write(self.body.replace('\r\n', '\n'))
-        self.load()
-        self.save_to_db(update=update)
+        if save_db:
+            self.load()
+            self.save_to_db(update=update)
         self.render()
 
 
@@ -223,11 +225,7 @@ class Page(object):
         approved = True
 
         if update:
-            select_query = '''SELECT MAX(version) AS max_version
-                                FROM wiki_pages
-                                WHERE url = ?;'''
-            cursor.execute(select_query, (self.url,))
-            version = cursor.fetchone()[0] + 1
+            version = self.get_last_version() + 1
             approved = True if author == self.get_author() else False
 
 
@@ -251,6 +249,19 @@ class Page(object):
         conn.close()
 
         return count
+
+    def get_last_version(self, approved=True):
+        '''
+        This method returns the most recent version number of the page.
+        '''
+        conn, cursor = connect_to_db()
+        query = '''SELECT MAX(version) AS max_version
+                        FROM wiki_pages
+                        WHERE url = ? AND approved = ?'''
+        cursor.execute(query, (self.url, approved, ))
+        max_version = cursor.fetchone()[0]
+
+        return max_version
 
     def get_previous_versions(self):
         conn, cursor = connect_to_db()
@@ -288,6 +299,25 @@ class Page(object):
         versions = [result[0] for result in results]
         return versions
 
+    def display_edit(self, version):
+        '''
+        This method loads, renders, and returns a pending edit for an author to review.
+
+        version: int
+        returns: Page
+        '''
+        conn, cursor = connect_to_db()
+
+        query = '''SELECT content FROM wiki_pages WHERE url=? AND version=?'''
+        cursor.execute(query, (self.url, version, ))
+        content = cursor.fetchone()[0]
+        edit = Page(self.path, self.url + f"/{version}")
+        edit.load_content(content)
+        edit.render()
+
+        conn.close()
+        return edit
+
     def set_approval(self, status, version):
         '''
         This method is used to change the approval status of an edit made to a page.
@@ -299,7 +329,11 @@ class Page(object):
 
         '''
         conn, cursor = connect_to_db()
-        cursor.execute('''UPDATE wiki_pages SET approved=? WHERE url=? AND version=?''', (status, self.url, version))
+        query = '''UPDATE wiki_pages 
+                    SET approved = ?
+                     WHERE url = ? and version = ?'''
+        cursor.execute(query, (status, self.url, version,))
+        conn.commit()
         conn.close()
 
     def get_approval(self, version):
@@ -317,6 +351,20 @@ class Page(object):
         conn.close()
 
         return approved
+
+    def restore_last_version(self):
+        '''
+        This method updates the page content to the last approved version.
+        '''
+        conn, cursor = connect_to_db()
+        last_version = self.get_last_version()
+
+        content_query = '''SELECT content FROM wiki_pages WHERE url = ? AND version = ?'''
+        cursor.execute(content_query, (self.url, last_version, ))
+        content = cursor.fetchone()[0]
+        self.load_content(content)
+        self.render()
+        self.save(update=True, save_db=False)
 
 
     @property
@@ -377,7 +425,7 @@ class Page(object):
         return author
 
 
-def delete_from_db(url, version=False):
+def delete_from_db(url, version_num=None, version=False):
     """
     This method removes all versions of a given wiki page in the database
 
@@ -386,7 +434,7 @@ def delete_from_db(url, version=False):
     conn, cursor = connect_to_db()
 
     if version:
-        cursor.execute('''DELETE FROM wiki_pages WHERE url=? AND version=?''', (url, version,))
+        cursor.execute('''DELETE FROM wiki_pages WHERE url=? AND version=?''', (url, version_num,))
     else:
         cursor.execute('''DELETE FROM wiki_pages WHERE url=?''', (url,))
 

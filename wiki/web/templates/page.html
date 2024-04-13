@@ -8,7 +8,7 @@
 {% block content %}
     {% if author %}
         {% for version in page.get_pending_edits() %}
-        <a href="{{ url_for('wiki.display_version', page_id=version, url=page.url) }}">Pending Edit</a>
+            <a href="{{ url_for('wiki.display_edit', version=version, url=page.url) }}">Pending Edit</a>
         {% endfor %}
     {% endif %}
   <div id="confirmDelete" class="modal hide fade" aria-hidden="true">
