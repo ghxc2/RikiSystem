@@ -170,6 +170,11 @@ class Processor(object):
 
 
 def connect_to_db():
+    '''
+    This method makes a connection to the sqlite3 database used in our system.
+
+    :returns: a connection and cursor to use for query execution
+    '''
     connection = sqlite3.connect(current_app.config['DATABASE'])
     cursor = connection.cursor()
 
@@ -239,6 +244,11 @@ class Page(object):
         connection.close()
 
     def get_version_count(self):
+        '''
+        This method returns the number of versions attributed to a page.
+
+        :returns: int
+        '''
         conn, cursor = connect_to_db()
 
         query = '''SELECT COUNT(*)
@@ -253,6 +263,8 @@ class Page(object):
     def get_last_version(self, approved=True):
         '''
         This method returns the most recent version number of the page.
+
+        :returns: int
         '''
         conn, cursor = connect_to_db()
         query = '''SELECT MAX(version) AS max_version
@@ -264,6 +276,12 @@ class Page(object):
         return max_version
 
     def get_previous_versions(self):
+        '''
+        This method pulls data from previous versions of a page from the database, and populates a temp page object to
+        user for rendering a previous version.
+
+        :returns: array of Page objects
+        '''
         conn, cursor = connect_to_db()
         pages = []
 
