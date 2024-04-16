@@ -7,4 +7,5 @@ PIC_BASE = '/static/content/'
 CONTENT_DIR = 'content'
 USER_DIR = 'user'
 NUMBER_OF_HISTORY = 5
+DATABASE = 'wiki.db'
 PRIVATE = True

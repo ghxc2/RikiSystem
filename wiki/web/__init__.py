@@ -1,4 +1,5 @@
 import os
+import sqlite3
 
 from flask import current_app
 from flask import Flask
@@ -46,6 +47,8 @@ def create_app(directory):
     from wiki.web.routes import bp
     app.register_blueprint(bp)
 
+    initialize_db(app)
+
     return app
 
 
@@ -55,3 +58,24 @@ loginmanager.login_view = 'wiki.user_login'
 @loginmanager.user_loader
 def load_user(name):
     return current_users.get_user(name)
+
+def initialize_db(app):
+    """
+    This method initializes the SQLite database to store Wiki page history.
+    """
+    conn = sqlite3.connect(app.config['DATABASE'])
+    cursor = conn.cursor()
+
+    cursor.execute('''CREATE TABLE IF NOT EXISTS wiki_pages (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        url TEXT NOT NULL,
+                        version INTEGER,
+                        content TEXT NOT NULL,
+                        date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+    # Just for testing purposes (to clear the table)
+    cursor.execute('''DELETE FROM wiki_pages''')
+
+    conn.commit()
+    conn.close()
+

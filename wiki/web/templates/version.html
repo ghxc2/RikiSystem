@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}
+	{{ page.title }}
+{% endblock title %}
+
+{% block content %}
+	{{ page }}
+{% endblock content %}
+
+
+{% block sidebar %}
+{% if page.tags %}
+<h3>Tags</h3>
+  <ul>
+      {% for tag in page.tags.split(',') %}
+        <li><a href="{{ url_for('wiki.tag', name=tag.strip()) }}">{{ tag|trim }}</a></li>
+      {% endfor %}
+  </ul>
+{% endif %}
+    <ul class="nav nav-tabs nav-stacked">
+	    <li><a href="{{ url_for('wiki.display', url=page.url.split("/")[0]) }}">Back to {{ page.url.split("/")[0] }}</a></li>
+    </ul>
+{% endblock sidebar %}

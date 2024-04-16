@@ -2,6 +2,7 @@
     Wiki core
     ~~~~~~~~~
 """
+import sqlite3
 from collections import OrderedDict
 from io import open
 import os
@@ -9,7 +10,9 @@ import re
 
 from flask import abort
 from flask import url_for
+from flask import current_app
 import markdown
+from datetime import datetime
 
 
 def clean_url(url):
@@ -164,6 +167,13 @@ class Processor(object):
         return self.final, self.markdown, self.meta
 
 
+def connect_to_db():
+    connection = sqlite3.connect(current_app.config['DATABASE'])
+    cursor = connection.cursor()
+
+    return connection, cursor
+
+
 class Page(object):
     def __init__(self, path, url, new=False):
         self.path = path
@@ -194,9 +204,72 @@ class Page(object):
                 f.write(line)
             f.write('\n')
             f.write(self.body.replace('\r\n', '\n'))
+        self.load()
+        self.save_to_db(update=update)
+        self.render()
+
+
+
+    def save_to_db(self, update):
+        """
+        This method saves a new wiki page edit to the database. It first finds the most recent version given the url,
+        and then it inserts the previous version for the most recent update.
+
+        It takes an argument values that specifies the url, version, and content to insert into the database.
+        """
+        connection, cursor = connect_to_db()
+        version = 1
+
         if update:
-            self.load()
-            self.render()
+            select_query = '''SELECT MAX(version) AS max_version
+                                FROM wiki_pages
+                                WHERE url = ?;'''
+            cursor.execute(select_query, (self.url,))
+            version = cursor.fetchone()[0] + 1
+
+
+        insert_query = '''INSERT INTO wiki_pages (url, version, content, date_created)
+                            VALUES (?, ?, ?, ?)'''
+
+
+        cursor.execute(insert_query, (self.url, version, self.content, datetime.now()))
+
+        connection.commit()
+        connection.close()
+
+    def get_version_count(self):
+        conn, cursor = connect_to_db()
+
+        query = '''SELECT COUNT(*)
+                    FROM wiki_pages
+                    WHERE url = ?'''
+        cursor.execute(query, (self.url,))
+        count = cursor.fetchone()[0]
+        conn.close()
+
+        return count
+
+    def get_previous_versions(self):
+        conn, cursor = connect_to_db()
+        pages = []
+
+        query = '''SELECT content
+                    FROM wiki_pages
+                    WHERE url = ? AND version = ?'''
+
+        for i in range(self.get_version_count()-1):
+            cursor.execute(query, (self.url, i + 1))
+            content = cursor.fetchone()[0]
+            page = Page(self.path, self.url + f"/{i + 1}")
+            page.load_content(content)
+            page.render()
+            pages.append(page)
+
+        conn.close()
+
+        return pages
+
+
 
     @property
     def meta(self):
@@ -236,6 +309,44 @@ class Page(object):
     @tags.setter
     def tags(self, value):
         self['tags'] = value
+
+    def load_content(self, value):
+        self.content = value
+
+
+def delete_from_db(url):
+    """
+    This method removes all versions of a given wiki page in the database
+
+    :url: the url of the wiki page to be deleted
+    """
+    conn, cursor = connect_to_db()
+
+    query = '''DELETE FROM wiki_pages
+                        WHERE url = ?'''
+    cursor.execute(query, (url,))
+
+    conn.commit()
+    conn.close()
+
+
+def update_url_db(url, newurl):
+    """
+    This method updates the url stored in the database for wiki page versions when the page is moved.
+
+    :url: existing url for a wiki page
+    :newurl: the url that the page is being moved to
+    """
+    conn, cursor = connect_to_db()
+
+    query = '''UPDATE wiki_pages
+                SET url = ?
+                WHERE url = ?'''
+
+    cursor.execute(query, (newurl, url))
+
+    conn.commit()
+    conn.close()
 
 
 class Wiki(object):
@@ -288,12 +399,15 @@ class Wiki(object):
         if not os.path.exists(folder):
             os.makedirs(folder)
         os.rename(source, target)
+        # change url references in database
+        update_url_db(url, newurl)
 
     def delete(self, url):
         path = self.path(url)
         if not self.exists(url):
             return False
         os.remove(path)
+        delete_from_db(url)
         return True
 
     def index(self):

@@ -48,6 +48,13 @@ def display(url):
     page = current_wiki.get_or_404(url)
     return render_template('page.html', page=page)
 
+@bp.route('/<path:url>/<int:page_id>')
+@protect
+def display_version(page_id, url):
+    page = current_wiki.get_or_404(url)
+    version = page.get_previous_versions()[page_id-1]
+    return render_template('version.html', page=version)
+
 
 @bp.route('/create/', methods=['GET', 'POST'])
 @protect
@@ -62,13 +69,15 @@ def create():
 @bp.route('/edit/<path:url>/', methods=['GET', 'POST'])
 @protect
 def edit(url):
+    update = True
     page = current_wiki.get(url)
     form = EditorForm(obj=page)
     if form.validate_on_submit():
         if not page:
+            update = False
             page = current_wiki.get_bare(url)
         form.populate_obj(page)
-        page.save()
+        page.save(update=update)
         flash('"%s" was saved.' % page.title, 'success')
         return redirect(url_for('wiki.display', url=url))
     return render_template('editor.html', form=form, page=page)
