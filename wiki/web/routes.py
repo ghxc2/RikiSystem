@@ -24,7 +24,7 @@ from wiki.web.search.Dropdown import *
 from wiki.web.user import protect
 
 bp = Blueprint('wiki', __name__)
-autocomplete = Dropdown()
+
 
 
 @bp.route('/')
@@ -137,6 +137,7 @@ def search_autocomplete():
     Method for handling /search_autocomplete requests
     Calls upon autocompleter to return valid json response
     """
+    autocomplete = Dropdown(current_wiki.index())
     return autocomplete.render(request.args.get('query', ''))
 
 

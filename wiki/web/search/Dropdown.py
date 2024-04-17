@@ -1,4 +1,6 @@
 from flask import jsonify
+
+import wiki.web
 from wiki.web.search.DropdownSearch import SuggestionSearch
 
 
@@ -10,7 +12,8 @@ class Dropdown:
     render() function to create serializable response based on all DropdownSearch
     classes required to create optimal autocomplete
     """
-    suggestions = SuggestionSearch()
+    def __init__(self, pages):
+        self.suggestions = SuggestionSearch(pages)
 
     def render(self, query):
         """

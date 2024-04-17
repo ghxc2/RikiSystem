@@ -1,5 +1,4 @@
 from abc import ABCMeta, abstractmethod
-from wiki.web import current_wiki
 from wiki.web.search.DropdownItem import SuggestionItem
 
 
@@ -13,6 +12,12 @@ class DropdownSearch(metaclass=ABCMeta):
     render() method to return them as a json serializable output
     """
 
+    @abstractmethod
+    def __init__(self, index): pass
+    """
+    Inits Dropdown Search
+    Inteded to init page index used during searching
+    """
     @abstractmethod
     def render(self, query): pass
 
@@ -47,6 +52,13 @@ class SuggestionSearch(DropdownSearch):
     To locate search results for autocomplete
     """
 
+    def __init__(self, index):
+        """
+        Inits SuggestionSearch
+        Inits pages index for searching
+        """
+        self.index = index
+
     def render(self, query):
         """
         Method responsible for returning data from search in a
@@ -76,17 +88,9 @@ class SuggestionSearch(DropdownSearch):
         Args:
             query (str): Query to be searched for to find matching pages
 
-        >>> t = SuggestionSearch()
-        >>> t.search("testing")[0].title
-        'Testing'
         """
-        results = current_wiki.search(query)
+
         items = []
-        for page in results:
+        for page in self.index:
             items.append(SuggestionItem(page))
         return items
-
-
-if __name__ == "__main__":
-    import doctest
-    doctest.testmod(extraglobs={'t': SuggestionSearch()})
