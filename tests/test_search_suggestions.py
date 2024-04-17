@@ -1,13 +1,6 @@
 import os
 import unittest
-import re
-from datetime import datetime
-
-from flask import session
-from flask import Flask
-
 from wiki.core import Page
-import wiki.web
 from wiki import create_app
 from wiki.core import Wiki
 from wiki.web.search.Dropdown import Dropdown
