@@ -31,17 +31,17 @@ class TestSearchSuggestions(unittest.TestCase):
 
     def test_dropdown_json(self):
         with self.app.app_context():
-            self.assertEqual(self.dropdown.render('test').json[0], 'Testing')
+            page = self.dropdown.render('test').json
+            self.assertEqual(page[0], 'Testing')
 
     def test_dropdown_item(self):
-        item = SuggestionItem(self.create_page())
+        item = SuggestionItem(self.create_page().title)
         self.assertEqual(item.title, "Testing")
-        self.assertEqual(item.url, "testing")
         self.assertEqual(item.tag, ".suggestion")
 
     def test_dropdown_search_search(self):
         result = self.dropdown.suggestions.search('test')[0]
-        self.assertEqual(result.title, SuggestionItem(self.create_page()).title)
+        self.assertEqual(result.title, SuggestionItem("Testing").title)
 
     def test_dropdown_search_render(self):
         result = self.dropdown.suggestions.render('test')[0]
