@@ -6,15 +6,20 @@ import os
 import json
 import binascii
 import hashlib
+import sqlite3
+from datetime import datetime
 from functools import wraps
 
 from flask import current_app
 from flask_login import current_user
 
+import config
+from wiki.core import connect_to_db
 
 
 class UserManager(object):
     """A very simple user Manager, that saves it's data as json."""
+
     def __init__(self, path):
         self.file = os.path.join(path, 'users.json')
 
@@ -119,6 +124,53 @@ class User(object):
             raise NotImplementedError(authentication_method)
         return result
 
+    def get_history_from_db(self, query):
+        conn = sqlite3.connect(config.DATABASE)
+        cursor = conn.cursor()
+        db_query = '''SELECT *
+                    FROM user_history
+                    WHERE user = ? AND url = ?'''
+        cursor.execute(db_query, (self.name, query))
+        result = cursor.fetchone()[0]
+        cursor.close()
+        conn.close()
+        return result
+
+    def increment_visits_to_db(self, query):
+        conn = sqlite3.connect(config.DATABASE)
+        cursor = conn.cursor()
+        db_query = '''UPDATE user_history
+                    SET date_last_accessed = '%s', count_accessed = count_accessed + 1
+                    WHERE user = '%s' AND url = '%s\'''' % (datetime.now(), self.name.lower(), query)
+        cursor.execute(db_query)
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+    def has_visited_page(self, query):
+        conn = sqlite3.connect(config.DATABASE)
+        cursor = conn.cursor()
+        db_query = '''SELECT *
+                    FROM user_history
+                    WHERE user = '%s' AND url = '%s\'''' % (self.name, query)
+        cursor.execute(db_query)
+        data = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        if not data:
+            return False
+        print("User has visited")
+        return True
+
+    def add_page_user_history(self, query):
+        conn = sqlite3.connect(config.DATABASE)
+        cursor = conn.cursor()
+        cursor.execute('''INSERT INTO user_history (url, date_last_accessed, count_accessed, user)
+                        VALUES (?, ?, ?, ?)''', (query, datetime.now(), 1, self.name))
+        conn.commit()
+        cursor.close()
+        conn.close()
+
 
 def get_default_authentication_method():
     return current_app.config.get('DEFAULT_AUTHENTICATION_METHOD', 'cleartext')
@@ -145,4 +197,5 @@ def protect(f):
         if current_app.config.get('PRIVATE') and not current_user.is_authenticated:
             return current_app.login_manager.unauthorized()
         return f(*args, **kwargs)
+
     return wrapper
