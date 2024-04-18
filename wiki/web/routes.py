@@ -2,7 +2,7 @@
     Routes
     ~~~~~~
 """
-from flask import Blueprint
+from flask import Blueprint, jsonify
 from flask import flash
 from flask import redirect
 from flask import render_template
@@ -20,10 +20,11 @@ from wiki.web.forms import SearchForm
 from wiki.web.forms import URLForm
 from wiki.web import current_wiki
 from wiki.web import current_users
+from wiki.web.search.Dropdown import *
 from wiki.web.user import protect
 
-
 bp = Blueprint('wiki', __name__)
+
 
 
 @bp.route('/')
@@ -187,6 +188,17 @@ def search():
     return render_template('search.html', form=form, search=None)
 
 
+@bp.route('/search_autocomplete', methods=['GET', 'POST'])
+@protect
+def search_autocomplete():
+    """
+    Method for handling /search_autocomplete requests
+    Calls upon autocompleter to return valid json response
+    """
+    autocomplete = Dropdown(current_wiki.index())
+    return autocomplete.render(request.args.get('query', ''))
+
+
 @bp.route('/user/login/', methods=['GET', 'POST'])
 def user_login():
     form = LoginForm()
@@ -237,4 +249,3 @@ def user_delete(user_id):
 @bp.errorhandler(404)
 def page_not_found(error):
     return render_template('404.html'), 404
-
