@@ -16,6 +16,8 @@ from flask_login import current_user
 import markdown
 from datetime import datetime
 
+import config
+
 
 def clean_url(url):
     """
@@ -175,7 +177,7 @@ def connect_to_db():
 
     :returns: a connection and cursor to use for query execution
     '''
-    connection = sqlite3.connect(current_app.config['DATABASE'])
+    connection = sqlite3.connect(config.DATABASE)
     cursor = connection.cursor()
 
     return connection, cursor

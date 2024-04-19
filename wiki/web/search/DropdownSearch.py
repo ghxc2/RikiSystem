@@ -1,5 +1,6 @@
+import sqlite3
 from abc import ABCMeta, abstractmethod
-from wiki.web.search.DropdownItem import SuggestionItem
+from wiki.web.search.DropdownItem import SuggestionItem, HistoryItem
 
 
 class DropdownSearch(metaclass=ABCMeta):
@@ -14,10 +15,12 @@ class DropdownSearch(metaclass=ABCMeta):
 
     @abstractmethod
     def __init__(self, index): pass
+
     """
     Inits Dropdown Search
     Inteded to init page index used during searching
     """
+
     @abstractmethod
     def render(self, query): pass
 
@@ -74,7 +77,6 @@ class SuggestionSearch(DropdownSearch):
         titles = []
         for item in items:
             titles.append(item.title)
-
         return titles
 
     def search(self, query):
@@ -92,5 +94,43 @@ class SuggestionSearch(DropdownSearch):
 
         items = []
         for page in self.index:
-            items.append(SuggestionItem(page))
+            if query.lower() in page.title.lower():
+                items.append(SuggestionItem(page.title))
         return items
+
+
+class HistorySearch(DropdownSearch):
+    def __init__(self, index, user, database):
+        self.index = index
+        self.user = user
+        self.database = database
+
+    def render(self, query):
+        results = self.search(query)
+        results.sort(key=lambda r: r.date, reverse=True)
+        titles = []
+        for item in results:
+            titles.append(item.title)
+        return titles
+
+    def search(self, query):
+        results = self.get_history_from_db()
+        items = []
+        for item in results:
+            if query.lower() in item[0].lower():
+                for page in self.index:
+                    if query.lower() in page.title.lower():
+                        items.append(HistoryItem(item[0], item[1]))
+
+        return items
+
+    def get_history_from_db(self):
+        conn = sqlite3.connect(self.database)
+        cursor = conn.cursor()
+        db_query = '''SELECT url, date_last_accessed
+                    FROM user_history
+                    WHERE user = ?'''
+        cursor.execute(db_query, (self.user,))
+        result = cursor.fetchall()
+        conn.close()
+        return result

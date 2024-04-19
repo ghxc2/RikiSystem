@@ -2,6 +2,8 @@
     Routes
     ~~~~~~
 """
+import sqlite3
+
 from flask import Blueprint, jsonify
 from flask import flash
 from flask import redirect
@@ -13,6 +15,7 @@ from flask_login import login_required
 from flask_login import login_user
 from flask_login import logout_user
 
+import config
 from wiki.core import Processor, delete_from_db
 from wiki.web.forms import EditorForm
 from wiki.web.forms import LoginForm
@@ -24,7 +27,6 @@ from wiki.web.search.Dropdown import *
 from wiki.web.user import protect
 
 bp = Blueprint('wiki', __name__)
-
 
 
 @bp.route('/')
@@ -48,15 +50,18 @@ def index():
 def display(url):
     page = current_wiki.get_or_404(url)
     is_author = page.get_author() == current_user.name
+    update_user_sql(page)
     return render_template('page.html', page=page, author=is_author)
+
 
 @bp.route('/display_version/<path:url>/<int:page_id>')
 @protect
 def display_version(page_id, url):
     page = current_wiki.get_or_404(url)
-    version = page.get_previous_versions()[page_id-1]
+    version = page.get_previous_versions()[page_id - 1]
     is_author = page.get_author() == current_user.name
     return render_template('version.html', page=version, author=is_author, version=page_id)
+
 
 @bp.route('/display_edit/<path:url>/<int:version>')
 @protect
@@ -97,6 +102,7 @@ def edit(url):
         return redirect(url_for('wiki.display', url=url))
     return render_template('editor.html', form=form, page=page)
 
+
 @bp.route('/approve_edit/<path:url>/', methods=['GET', 'POST'])
 @protect
 def approve_edit(url):
@@ -107,6 +113,7 @@ def approve_edit(url):
     page.set_approval(status=True, version=version)
     flash('Page Updated', 'success')
     return redirect(url_for('wiki.display', url=base_url))
+
 
 @bp.route('/disapprove_edit/<path:url>/', methods=['GET', 'POST'])
 @protect
@@ -119,6 +126,7 @@ def disapprove_edit(url):
     page.restore_last_version()
     flash('Edit Rejected.', 'success')
     return redirect(url_for('wiki.display', url=base_url))
+
 
 @bp.route('/preview/', methods=['POST'])
 @protect
@@ -195,8 +203,9 @@ def search_autocomplete():
     Method for handling /search_autocomplete requests
     Calls upon autocompleter to return valid json response
     """
-    autocomplete = Dropdown(current_wiki.index())
+    autocomplete = Dropdown(current_wiki.index(),  config.DATABASE, current_user.name,)
     return autocomplete.render(request.args.get('query', ''))
+
 
 
 @bp.route('/user/login/', methods=['GET', 'POST'])
@@ -249,3 +258,16 @@ def user_delete(user_id):
 @bp.errorhandler(404)
 def page_not_found(error):
     return render_template('404.html'), 404
+
+
+"""
+   User SQL Access
+   ~~~~~~~~~~~~~~~
+"""
+
+
+def update_user_sql(page):
+    if current_user.has_visited_page(page.title):
+        current_user.increment_visits_to_db(page.title)
+    else:
+        current_user.add_page_user_history(page.title)

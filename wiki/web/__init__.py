@@ -11,8 +11,10 @@ from werkzeug.local import LocalProxy
 from wiki.core import Wiki
 from wiki.web.user import UserManager
 
+
 class WikiError(Exception):
     pass
+
 
 def get_wiki():
     wiki = getattr(g, '_wiki', None)
@@ -20,13 +22,16 @@ def get_wiki():
         wiki = g._wiki = Wiki(current_app.config['CONTENT_DIR'])
     return wiki
 
+
 current_wiki = LocalProxy(get_wiki)
+
 
 def get_users():
     users = getattr(g, '_users', None)
     if users is None:
         users = g._users = UserManager(current_app.config['USER_DIR'])
     return users
+
 
 current_users = LocalProxy(get_users)
 
@@ -56,9 +61,11 @@ def create_app(directory):
 loginmanager = LoginManager()
 loginmanager.login_view = 'wiki.user_login'
 
+
 @loginmanager.user_loader
 def load_user(name):
     return current_users.get_user(name)
+
 
 def initialize_db(app):
     """
@@ -76,8 +83,9 @@ def initialize_db(app):
                         author TEXT NOT NULL,
                         approved BOOLEAN DEFAULT FALSE
     )''')
-    home_page = (1, 'home', 1, 'title: Main tags: interesting World [[hello|abc]] [[world|world]] aaa bruh', datetime.now(),
-                 'sam', True)
+    home_page = (
+    1, 'home', 1, 'title: Main tags: interesting World [[hello|abc]] [[world|world]] aaa bruh', datetime.now(),
+    'sam', True)
     test_page = (2, 'test', 1, 'title: Testing tags: testing Testing stuff here!', datetime.now(), 'sam', True)
 
     # Just for testing purposes (to reinitialize the table)
@@ -85,6 +93,17 @@ def initialize_db(app):
     cursor.execute('''INSERT INTO wiki_pages VALUES (?, ?, ?, ?, ?, ?, ?)''', home_page)
     cursor.execute('''INSERT INTO wiki_pages VALUES (?, ?, ?, ?, ?, ?, ?)''', test_page)
 
+    # Init User History Table
+    cursor.execute('''CREATE TABLE IF NOT EXISTS user_history (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            url TEXT NOT NULL,
+                            date_last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            count_accessed INTEGER NOT NULL,
+                            user TEXT NOT NULL
+        )''')
+
     conn.commit()
     conn.close()
+
+
 

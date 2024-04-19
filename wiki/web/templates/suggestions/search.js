@@ -21,16 +21,46 @@
       }
 
       // Function to populate the autocomplete suggestions
-      function populateAutocomplete(suggestions) {
-        var results = suggestions.map(function(suggestion) {
+      function populateAutocomplete(data) {
+        var results = data[0].map(function(suggestion) {
           return suggestion;
         });
-        $('#term').autocomplete({
-          source: results
+        var results_history = data[1].map(function(hist) {
+          return hist;
         });
-      }
 
+        var results_fixed = [];
+        for (let i = 0; i < results.length; i++) {
+            if (results_history.includes(results[i])) {
+                results_fixed.push(results[i])
+            }
+        };
+
+        for (let i = 0; i < results.length; i++) {
+            if (!results_fixed.includes(results[i])) {
+                results_fixed.push(results[i])
+            }
+        };
+        $('#term').autocomplete({
+          source: results_fixed
+        }).autocomplete('instance')._renderItem = function(ul, item) {
+            var string = '<a ' + checkHistory(item, results_history) + '>' + item.label + '</a>';
+            return $('<li>')
+                .append(string)
+                .appendTo(ul);
+        };
+      }
+      function checkHistory(item, history) {
+        for (let i = 0; i < history.length; i++) {
+            console.log('trying ' + history[i] + ' against ' + item.label)
+            if (history[i] === item.label) {
+                return 'style="color: purple;"';
+            }
+        }
+            return '';
+        }
       // Fetch data on input
       $('#term').on('input', fetchData);
     });
+
 </script>
