@@ -28,7 +28,7 @@ class DropdownSearch(metaclass=ABCMeta):
     Method responsible for returning data from search in a
     serializable form that will be valid when returned with jsonify
     allows for easy returning of results from search
-    
+
     Args:
         query (str): Query to be searched for to find matching pages
     """
@@ -100,12 +100,37 @@ class SuggestionSearch(DropdownSearch):
 
 
 class HistorySearch(DropdownSearch):
+    """
+        HistorySearch Class
+
+        Class dedicated to creating HistorySearch class
+        Used for Searching for results on system related to query provided
+        To locate search results for autocomplete.
+        Uses SQL Database
+        """
+
     def __init__(self, index, user, database):
+        """
+        Inits SuggestionSearch
+        Inits pages index for searching
+        Inits database to be used
+        Inits user to be queried by
+        """
         self.index = index
         self.user = user
         self.database = database
 
     def render(self, query):
+        """
+        Method responsible for returning data from search in a
+        serializable form that will be valid when returned with jsonify
+        allows for easy returning of results from search
+
+        Will only return results related to user history
+
+        Args:
+            query (str): Query to be searched for to find matching pages
+        """
         results = self.search(query)
         results.sort(key=lambda r: r.date, reverse=True)
         titles = []
@@ -114,6 +139,18 @@ class HistorySearch(DropdownSearch):
         return titles
 
     def search(self, query):
+        """
+        Method responsible for implementing search algorithm used to find pages
+        Should convert to matching DropdownItem type classes to allow
+        Easy conversion from pages to usable data needed for search
+        Uses results  from database using user's results.
+
+        Will only return results related to user history
+
+        Args:
+            query (str): Query to be searched for to find matching pages
+
+        """
         results = self.get_history_from_db()
         items = []
         for item in results:
@@ -125,6 +162,11 @@ class HistorySearch(DropdownSearch):
         return items
 
     def get_history_from_db(self):
+        """
+        Retrieve's user history from database
+
+        Returns a list of all user's found history
+        """
         conn = sqlite3.connect(self.database)
         cursor = conn.cursor()
         db_query = '''SELECT url, date_last_accessed

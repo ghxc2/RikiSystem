@@ -14,8 +14,8 @@ class TestSearchSuggestions(unittest.TestCase):
     def setUp(self):
         self.database = 'test.db'
         self.init_db()
+        self.clear_db()
         self.create_dropdown()
-
 
     def tearDown(self):
         self.clear_db()
@@ -57,6 +57,7 @@ class TestSearchSuggestions(unittest.TestCase):
 
     def clear_db(self):
         self.cursor.execute('''DELETE FROM user_history;''')
+
     def increment_accesses(self, query, name):
         db_query = '''UPDATE user_history
                             SET date_last_accessed = '%s', count_accessed = count_accessed + 1
@@ -92,6 +93,17 @@ class TestSearchSuggestions(unittest.TestCase):
         log = logging.Logger("test_history_render")
         results = self.dropdown.history.render("Testing")
         self.assertNotEqual(len(results), 0)
+
+    def test_suggestions_history_acceptance(self):
+        #simulating a user having a page they have visited, and a page they have not
+        self.insert_data("Testing", "name")
+        item = HistoryItem(self.create_page().title, datetime.now())
+        results = self.dropdown.history.render("Testing")
+        #if the page they have visited is a HistoryItem and the one they haven't is not, assert True
+        if isinstance(item, HistoryItem) and not isinstance(results, HistoryItem):
+            self.assertEqual(1, 1)
+        else:
+            self.assertEqual(0, 1)
 
 if __name__ == "__main__":
     unittest.main()

@@ -159,7 +159,6 @@ class User(object):
         conn.close()
         if not data:
             return False
-        print("User has visited")
         return True
 
     def add_page_user_history(self, query):
