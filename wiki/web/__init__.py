@@ -8,6 +8,7 @@ from flask import g
 from flask_login import LoginManager
 from werkzeug.local import LocalProxy
 
+import config
 from wiki.core import Wiki
 from wiki.web.user import UserManager
 
@@ -83,15 +84,16 @@ def initialize_db(app):
                         author TEXT NOT NULL,
                         approved BOOLEAN DEFAULT FALSE
     )''')
-    home_page = (
-    1, 'home', 1, 'title: Main tags: interesting World [[hello|abc]] [[world|world]] aaa bruh', datetime.now(),
-    'sam', True)
-    test_page = (2, 'test', 1, 'title: Testing tags: testing Testing stuff here!', datetime.now(), 'sam', True)
 
-    # Just for testing purposes (to reinitialize the table)
-    cursor.execute('''DELETE FROM wiki_pages''')
-    cursor.execute('''INSERT INTO wiki_pages VALUES (?, ?, ?, ?, ?, ?, ?)''', home_page)
-    cursor.execute('''INSERT INTO wiki_pages VALUES (?, ?, ?, ?, ?, ?, ?)''', test_page)
+    if not page_exists("home"):
+        home_page = (
+        1, 'home', 1, 'title: Main tags: interesting World [[hello|abc]] [[world|world]] aaa bruh', datetime.now(),
+        'sam', True)
+        test_page = (2, 'testing', 1, 'title: Testing tags: testing Testing stuff here!', datetime.now(), 'sam', True)
+
+        # Just for testing purposes (to reinitialize the table)
+        cursor.execute('''INSERT INTO wiki_pages VALUES (?, ?, ?, ?, ?, ?, ?)''', home_page)
+        cursor.execute('''INSERT INTO wiki_pages VALUES (?, ?, ?, ?, ?, ?, ?)''', test_page)
 
     # Init User History Table
     cursor.execute('''CREATE TABLE IF NOT EXISTS user_history (
@@ -106,4 +108,16 @@ def initialize_db(app):
     conn.close()
 
 
-
+def page_exists(query):
+    conn = sqlite3.connect(config.DATABASE)
+    cursor = conn.cursor()
+    db_query = '''SELECT *
+                FROM wiki_pages
+                WHERE url = '%s\'''' % (query,)
+    cursor.execute(db_query)
+    data = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    if not data:
+        return False
+    return True

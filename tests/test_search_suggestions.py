@@ -47,6 +47,16 @@ class TestSearchSuggestions(unittest.TestCase):
         result = self.dropdown.suggestions.render('test')[0]
         self.assertEqual(result, 'Testing')
 
+    def test_search_suggestions_acceptance(self):
+        #simulating user searches as te and test
+        result = self.dropdown.suggestions.search('te')[0]
+        result2 = self.dropdown.suggestions.search('test')[0]
+        #they should be the same since they both lead to only one available page entry, but shows regex working
+        self.assertEqual(result.title, result2.title)
+        #simulating user searches that are not available page entries
+        result = self.dropdown.suggestions.search('pan')
+        #returns an empty array because no available pages were found under pan
+        self.assertEqual(result, [])
 
 if __name__ == "__main__":
     unittest.main()

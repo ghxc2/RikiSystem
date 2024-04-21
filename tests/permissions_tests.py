@@ -1,9 +1,11 @@
 import unittest
+from unittest.mock import MagicMock, patch
 import sqlite3
 from datetime import datetime
 from wiki.core import Page
 
 class TestUserPermissions(unittest.TestCase):
+
     def setUp(self):
         self.conn = sqlite3.connect(':memory:')
         self.cursor = self.conn.cursor()
@@ -29,7 +31,12 @@ class TestUserPermissions(unittest.TestCase):
 
     def insert_data(self, url='testing', version=1, content='content', date_created=datetime.now(), author='author', approved=True):
         self.cursor.execute('''INSERT INTO wiki_pages (url, version, content, date_created, author, approved)
-                                    VALUES (?, ?, ?, ?, ?, ?)''', (url, version, content, date_created, author, approved, ))
+                                    VALUES (?, ?, ?, ?, ?, ?)''', (url, version, content, date_created, author, approved ))
+
+    def remove_data(self, url='testing', version=1, content='content', date_created=datetime.now(), author='author', approved=True):
+        self.cursor.execute('''DELETE FROM wiki_pages WHERE url = ? and version = ? and content = ? and date_created 
+        = ? and author = ? and approved = ?''',
+                            (url, version, content, date_created, author, approved))
 
     def test_get_last_version(self):
         self.insert_data()
@@ -43,6 +50,9 @@ class TestUserPermissions(unittest.TestCase):
         result = self.cursor.fetchone()[0]
 
         self.assertEqual(result, 2)
+        self.remove_data()
+        self.remove_data('testing', 2, 'new content', datetime.now(), 'author', True)
+        self.remove_data('testing', 3, 'newer content', datetime.now(), 'user', False)
 
     def test_set_approval(self):
         self.insert_data('testing', 2, 'content', datetime.now(), 'author', False)
@@ -54,14 +64,16 @@ class TestUserPermissions(unittest.TestCase):
 
         result = self.cursor.fetchone()[0]
         self.assertEqual(result, True)
+        self.remove_data('testing', 2, 'content', datetime.now(), 'author', False)
 
     def test_get_approval(self):
         self.insert_data(approved=False)
         query = '''SELECT approved FROM wiki_pages WHERE url=? AND version=?'''
         self.cursor.execute(query, ('testing', 1))
 
-        result = self.cursor.fetchone()[0]
+        result = bool(self.cursor.fetchone()[0])
         self.assertEqual(result, False)
+        self.remove_data(approved=False)
 
     def test_get_author(self):
         self.insert_data()
@@ -70,6 +82,7 @@ class TestUserPermissions(unittest.TestCase):
 
         result = self.cursor.fetchone()[0]
         self.assertEqual(result, 'author')
+        self.remove_data()
 
     def test_display_edit(self):
         self.insert_data()
@@ -82,38 +95,36 @@ class TestUserPermissions(unittest.TestCase):
         result = page.content
 
         self.assertEqual(result, 'content')
+        self.remove_data()
 
     def test_get_pending_edits(self):
         self.insert_data()
         self.insert_data(version=2, approved=False)
         self.insert_data(version=3, approved=False)
-
+        self.remove_data(version=3)
         query = '''SELECT version FROM wiki_pages WHERE url=? AND approved=?'''
         self.cursor.execute(query, ('testing', False))
         versions = self.cursor.fetchall()
 
         results = [version[0] for version in versions]
         self.assertEqual(results, [2, 3])
+        self.remove_data()
+        self.remove_data(version=2, approved=False)
+        self.remove_data(version=3, approved=False)
 
     def test_restore_last_version(self):
         self.insert_data()
-        self.insert_data(version=2, content='new content')
-        self.insert_data(version=3, content='newer content', approved=False)
+        self.insert_data(version=3, content='new content')
+        self.insert_data(version=4, content='newer content', approved=False)
 
         query = '''SELECT content FROM wiki_pages WHERE url = ? AND version=? AND approved=TRUE'''
-        self.cursor.execute(query, ('testing', 2))
+        self.cursor.execute(query, ('testing', 3))
         content = self.cursor.fetchone()[0]
         page = self.create_page()
         page.load_content(content)
 
         result = page.content
         self.assertEqual(result, 'new content')
-
-
-
-
-
-
 
 if __name__ == '__main__':
     unittest.main()
